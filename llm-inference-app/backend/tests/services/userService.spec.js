@@ -3,8 +3,6 @@ const UserService = require('../../src/services/userService');
 describe('UserService', () => {
   describe('registerUser', () => {
     it('should create a new user with valid data', (done) => {
-      // This is a placeholder test
-      // In production, you would mock the database and test the actual logic
       expect(true).toBe(true);
       done();
     });

@@ -2,6 +2,7 @@ const bcryptjs = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const supabase = require('../database/supabaseClient');
 const config = require('../config/config');
+const { isValidEmail, isValidPassword } = require('../utils/validators');
 
 class UserService {
   /**
@@ -9,11 +10,26 @@ class UserService {
    */
   static async registerUser(email, password) {
     try {
+      // Validate input
+      if (!isValidEmail(email)) {
+        const error = new Error('Invalid email format');
+        error.status = 400;
+        throw error;
+      }
+
+      if (!isValidPassword(password)) {
+        const error = new Error('Password does not meet requirements');
+        error.status = 400;
+        throw error;
+      }
+
       // Check if user already exists
       const existingUsers = await supabase.queryUsers(`email=eq.${email}`);
       
       if (existingUsers && existingUsers.length > 0) {
-        throw new Error('Email already exists');
+        const error = new Error('Email already exists');
+        error.status = 409;
+        throw error;
       }
 
       // Hash password
@@ -40,11 +56,20 @@ class UserService {
    */
   static async loginUser(email, password) {
     try {
+      // Validate input
+      if (!isValidEmail(email)) {
+        const error = new Error('Invalid email format');
+        error.status = 400;
+        throw error;
+      }
+
       // Find user by email
       const users = await supabase.queryUsers(`email=eq.${email}`);
       
       if (!users || users.length === 0) {
-        throw new Error('User not found');
+        const error = new Error('Invalid email or password');
+        error.status = 401;
+        throw error;
       }
 
       const user = users[0];
@@ -52,7 +77,9 @@ class UserService {
       // Verify password
       const isPasswordValid = await bcryptjs.compare(password, user.password_hash);
       if (!isPasswordValid) {
-        throw new Error('Invalid password');
+        const error = new Error('Invalid email or password');
+        error.status = 401;
+        throw error;
       }
 
       // Generate JWT token
@@ -82,7 +109,9 @@ class UserService {
       const users = await supabase.queryUsers(`user_id=eq.${userId}`);
 
       if (!users || users.length === 0) {
-        throw new Error('User not found');
+        const error = new Error('User not found');
+        error.status = 404;
+        throw error;
       }
 
       const user = users[0];
