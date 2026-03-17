@@ -6,8 +6,9 @@
   "scripts": {
     "start": "node src/index.js",
     "dev": "nodemon src/index.js",
-    "test": "jasmine \"tests/**/*spec.js\"",
-    "test:watch": "nodemon --exec jasmine -- \"tests/**/*spec.js\""
+    "test": "jasmine tests/authSpec.js",
+    "test:watch": "nodemon --exec jasmine",
+    "test:cucumber": "cucumber-js features/**/*.feature --require features/step_definitions/steps.js"
   },
   "keywords": [
     "llm",
@@ -29,8 +30,10 @@
     "uuid": "^9.0.0"
   },
   "devDependencies": {
+    "@cucumber/cucumber": "^12.7.0",
     "jasmine": "^4.6.0",
     "jasmine-core": "^4.6.0",
-    "nodemon": "^2.0.22"
+    "nodemon": "^2.0.22",
+    "puppeteer": "^24.39.1"
   }
 }
