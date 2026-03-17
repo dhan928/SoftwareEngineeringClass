@@ -8,8 +8,7 @@ function sleep(ms) {
 
 async function waitForHttpOk(url, timeoutMs = 15000) {
   const start = Date.now();
-  // Node 18+ has fetch; fallback not needed in this repo.
-  // eslint-disable-next-line no-constant-condition
+
   while (true) {
     try {
       const res = await fetch(url, { method: 'GET' });
