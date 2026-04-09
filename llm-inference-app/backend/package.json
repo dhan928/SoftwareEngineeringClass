@@ -7,11 +7,7 @@
     "start": "node src/index.js",
     "dev": "nodemon src/index.js",
     "test": "jasmine \"tests/**/*spec.js\"",
-    "test:watch": "nodemon --exec jasmine -- \"tests/**/*spec.js\"",
-    "test:acceptance": "cucumber-js",
-    "test:acceptance:watch": "nodemon --exec cucumber-js",
-    "test:acceptance:smoke": "cucumber-js --profile smoke",
-    "test:all": "npm test & npm run test:acceptance"
+    "test:watch": "nodemon --exec jasmine -- \"tests/**/*spec.js\""
   },
   "keywords": [
     "llm",
@@ -36,6 +32,7 @@
     "@cucumber/cucumber": "^12.7.0",
     "jasmine": "^4.6.0",
     "jasmine-core": "^4.6.0",
-    "nodemon": "^2.0.22"
+    "nodemon": "^2.0.22",
+    "puppeteer": "^24.39.1"
   }
 }
