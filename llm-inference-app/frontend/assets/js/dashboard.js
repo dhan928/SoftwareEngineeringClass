@@ -1,12 +1,7 @@
-// ===========================
-// Dashboard Functions
-// ===========================
+let conversations = [];
+let currentConversationId = null;
+let availableModels = [];
 
-let chatHistory = [];
-
-/**
- * Initialize dashboard
- */
 async function initializeDashboard() {
     requireAuth();
 
@@ -14,42 +9,98 @@ async function initializeDashboard() {
     const userNameEl = document.getElementById('userName');
     const userAvatarEl = document.getElementById('userAvatar');
     const navLogoutBtn = document.getElementById('navLogoutBtn');
-
-    // Display user info
-    if (userNameEl && user.email) {
-        userNameEl.textContent = user.email;
-    }
-
-    if (userAvatarEl && user.email) {
-        userAvatarEl.textContent = user.email.charAt(0).toUpperCase();
-    }
-
-    // Logout buttons
-    if (navLogoutBtn) {
-        navLogoutBtn.addEventListener('click', logoutUser);
-    }
-
-    // Load chat history
-    await loadInferenceHistory();
-
-    // Handle form submission
     const chatForm = document.getElementById('chatForm');
-    if (chatForm) {
-        chatForm.addEventListener('submit', handleChatSubmit);
+    const searchInput = document.getElementById('historySearch');
+    const newChatBtn = document.getElementById('newChatBtn');
+    const modelSelect = document.getElementById('modelSelect');
+
+    if (userNameEl && user.email) userNameEl.textContent = user.email;
+    if (userAvatarEl && user.email) userAvatarEl.textContent = user.email.charAt(0).toUpperCase();
+    if (navLogoutBtn) navLogoutBtn.addEventListener('click', logoutUser);
+    if (chatForm) chatForm.addEventListener('submit', handleChatSubmit);
+    if (newChatBtn) newChatBtn.addEventListener('click', startNewChat);
+    if (modelSelect) modelSelect.addEventListener('change', handleModelChange);
+    if (searchInput) {
+        searchInput.addEventListener('input', debounce(async (event) => {
+            await loadConversationHistory(event.target.value.trim());
+        }, 250));
+    }
+
+    await loadModels();
+    await loadConversationHistory();
+}
+
+async function loadModels() {
+    try {
+        const response = await apiCall('/models', { method: 'GET' });
+        if (!response.success) return;
+
+        const { local, public: publicModels } = response.data;
+        availableModels = [...local, ...publicModels];
+
+        const modelSelect = document.getElementById('modelSelect');
+        if (!modelSelect) return;
+
+        modelSelect.innerHTML = '';
+
+        if (local.length > 0) {
+            const localGroup = document.createElement('optgroup');
+            localGroup.label = '💻 Local (Ollama)';
+            local.forEach((m) => {
+                const opt = document.createElement('option');
+                opt.value = JSON.stringify({ provider: m.provider, model: m.id });
+                opt.textContent = m.name;
+                localGroup.appendChild(opt);
+            });
+            modelSelect.appendChild(localGroup);
+        }
+
+        const publicGroup = document.createElement('optgroup');
+        publicGroup.label = '🌐 Public APIs';
+        publicModels.forEach((m) => {
+            const opt = document.createElement('option');
+            opt.value = JSON.stringify({ provider: m.provider, model: m.id });
+            opt.textContent = m.name;
+            publicGroup.appendChild(opt);
+        });
+        modelSelect.appendChild(publicGroup);
+
+        // Default to first local model
+        if (availableModels.length > 0) {
+            modelSelect.selectedIndex = 0;
+            handleModelChange();
+        }
+    } catch (error) {
+        console.error('Failed to load models:', error);
     }
 }
 
-/**
- * Load inference history from API
- */
-async function loadInferenceHistory() {
-    try {
-        const response = await apiCall('/inference?limit=10', {
-            method: 'GET'
-        });
+function handleModelChange() {
+    const modelSelect = document.getElementById('modelSelect');
+    const modelBadge = document.getElementById('modelBadge');
+    if (!modelSelect || !modelSelect.value) return;
 
+    const { provider } = JSON.parse(modelSelect.value);
+    const isLocal = provider === 'ollama';
+
+    if (modelBadge) {
+        modelBadge.textContent = isLocal ? 'local' : 'public';
+        modelBadge.className = `model-badge ${isLocal ? 'local' : 'public'}`;
+    }
+}
+
+function getSelectedModel() {
+    const modelSelect = document.getElementById('modelSelect');
+    if (!modelSelect || !modelSelect.value) return { provider: 'ollama', model: 'llama3' };
+    return JSON.parse(modelSelect.value);
+}
+
+async function loadConversationHistory(search = '') {
+    try {
+        const query = search ? `?search=${encodeURIComponent(search)}` : '';
+        const response = await apiCall(`/conversations${query}`, { method: 'GET' });
         if (response.success) {
-            chatHistory = response.data || [];
+            conversations = response.data || [];
             displayHistoryList();
         }
     } catch (error) {
@@ -57,230 +108,129 @@ async function loadInferenceHistory() {
     }
 }
 
-/**
- * Display history list in sidebar
- */
 function displayHistoryList() {
     const historyList = document.getElementById('historyList');
-    
     if (!historyList) return;
 
-    if (chatHistory.length === 0) {
-        historyList.innerHTML = '<p class="empty-state">No chat history yet</p>';
+    if (!conversations.length) {
+        historyList.innerHTML = '<p class="empty-state">No saved conversations yet</p>';
         return;
     }
 
-    historyList.innerHTML = chatHistory.map((inference, index) => `
-        <div class="history-item" onclick="loadInference('${inference.inferenceId}')">
-            <div>
-                <p>${inference.prompt.substring(0, 50)}...</p>
-                <span>${formatDate(inference.createdAt)}</span>
+    historyList.innerHTML = conversations.map((conversation) => `
+        <button class="history-item ${conversation.conversationId === currentConversationId ? 'active' : ''}" data-id="${conversation.conversationId}">
+            <div class="history-item-top">
+                <p>${escapeHtml(conversation.title || 'New Chat')}</p>
+                <span>${formatDate(conversation.updatedAt)}</span>
+            </div>
+            <small>${escapeHtml((conversation.preview || '').slice(0, 80))}</small>
+        </button>
+    `).join('');
+
+    historyList.querySelectorAll('.history-item').forEach((button) => {
+        button.addEventListener('click', () => loadConversation(button.dataset.id));
+    });
+}
+
+async function loadConversation(conversationId) {
+    try {
+        const response = await apiCall(`/conversations/${conversationId}`, { method: 'GET' });
+        if (response.success) {
+            currentConversationId = conversationId;
+            renderConversation(response.data);
+            displayHistoryList();
+        }
+    } catch (error) {
+        showError('chatError', 'Failed to load conversation');
+    }
+}
+
+function renderConversation(conversation) {
+    const chatMessages = document.getElementById('chatMessages');
+    const chatTitle = document.getElementById('chatTitle');
+    if (!chatMessages) return;
+
+    if (chatTitle) chatTitle.textContent = conversation.title || 'New Chat';
+
+    if (!conversation.messages || !conversation.messages.length) {
+        chatMessages.innerHTML = `
+            <div class="welcome-message">
+                <h3>Start a conversation</h3>
+                <p>Your messages and replies will appear here.</p>
+            </div>
+        `;
+        return;
+    }
+
+    chatMessages.innerHTML = conversation.messages.map((message) => `
+        <div class="message ${message.role === 'user' ? 'user' : 'ai'}">
+            <div class="message-content">
+                ${formatMessageContent(message.content)}
+                <div class="message-timestamp">${formatDate(message.createdAt)}</div>
             </div>
         </div>
     `).join('');
-}
-
-/**
- * Load specific inference from history
- */
-async function loadInference(inferenceId) {
-    try {
-        const response = await apiCall(`/inference/${inferenceId}`, {
-            method: 'GET'
-        });
-
-        if (response.success) {
-            displayInferenceMessages(response.data);
-        }
-    } catch (error) {
-        showError('inferenceError', 'Failed to load inference');
-    }
-}
-
-/**
- * Display inference messages in chat
- */
-function displayInferenceMessages(inference) {
-    const chatMessages = document.getElementById('chatMessages');
-    
-    if (!chatMessages) return;
-
-    chatMessages.innerHTML = `
-        <div class="message user">
-            <div class="message-content">
-                ${escapeHtml(inference.prompt)}
-                <div class="message-timestamp">${formatDate(inference.createdAt)}</div>
-            </div>
-        </div>
-    `;
-
-    if (inference.response) {
-        chatMessages.innerHTML += `
-            <div class="message ai">
-                <div class="message-content">
-                    ${escapeHtml(inference.response)}
-                    <div class="message-timestamp">${formatDate(inference.completedAt)}</div>
-                </div>
-            </div>
-        `;
-    } else if (inference.status === 'pending' || inference.status === 'processing') {
-        chatMessages.innerHTML += `
-            <div class="message ai">
-                <div class="message-content">
-                    <em>Processing your request...</em>
-                </div>
-            </div>
-        `;
-    } else if (inference.status === 'error') {
-        chatMessages.innerHTML += `
-            <div class="message ai">
-                <div class="message-content" style="color: #ef4444;">
-                    <em>Error: ${escapeHtml(inference.errorMessage || 'Unknown error')}</em>
-                </div>
-            </div>
-        `;
-    }
 
     chatMessages.scrollTop = chatMessages.scrollHeight;
 }
 
-/**
- * Handle chat form submission
- */
 async function handleChatSubmit(event) {
     event.preventDefault();
+    hideError('chatError');
 
     const promptInput = document.getElementById('promptInput');
     const submitBtn = event.target.querySelector('button[type="submit"]');
     const prompt = promptInput.value.trim();
-
     if (!prompt) {
         showError('chatError', 'Please enter a message');
         return;
     }
 
+    const { provider, model } = getSelectedModel();
+    const originalText = submitBtn.textContent;
+    submitBtn.textContent = 'Sending...';
+    submitBtn.disabled = true;
+
     try {
-        // Show loading state
-        const originalText = submitBtn.textContent;
-        submitBtn.textContent = 'Sending...';
-        submitBtn.disabled = true;
-
-        // Display user message
-        const chatMessages = document.getElementById('chatMessages');
-        if (chatMessages && chatMessages.querySelector('.welcome-message')) {
-            chatMessages.innerHTML = '';
-        }
-
-        const userMessageEl = document.createElement('div');
-        userMessageEl.className = 'message user';
-        userMessageEl.innerHTML = `
-            <div class="message-content">
-                ${escapeHtml(prompt)}
-                <div class="message-timestamp">${formatDate(new Date())}</div>
-            </div>
-        `;
-        chatMessages.appendChild(userMessageEl);
-
-        // Submit to inference endpoint
-        const response = await apiCall('/inference/submit', {
-            method: 'POST',
-            body: JSON.stringify({ prompt })
-        });
-
-        if (response.success) {
-            // Display AI processing message
-            const aiMessageEl = document.createElement('div');
-            aiMessageEl.className = 'message ai';
-            aiMessageEl.innerHTML = `
-                <div class="message-content">
-                    <em>Processing your request...</em>
-                </div>
-            `;
-            chatMessages.appendChild(aiMessageEl);
-
-            // Clear input
-            promptInput.value = '';
-
-            // Poll for result
-            pollForInferenceResult(response.data.inferenceId, aiMessageEl);
-
-            // Reload history
-            setTimeout(loadInferenceHistory, 1000);
-        }
-
-        submitBtn.textContent = originalText;
-        submitBtn.disabled = false;
-    } catch (error) {
-        submitBtn.textContent = originalText;
-        submitBtn.disabled = false;
-
-        if (error.data && error.data.message) {
-            showError('chatError', error.data.message);
+        let response;
+        if (!currentConversationId) {
+            response = await apiCall('/conversations', {
+                method: 'POST',
+                body: JSON.stringify({ prompt, provider, model })
+            });
         } else {
-            showError('chatError', 'Failed to send message');
+            response = await apiCall(`/conversations/${currentConversationId}/messages`, {
+                method: 'POST',
+                body: JSON.stringify({ prompt, provider, model })
+            });
         }
-    }
-}
-
-/**
- * Poll for inference result
- */
-async function pollForInferenceResult(inferenceId, messageElement, attempts = 0) {
-    const maxAttempts = 30; // 5 minutes with 10 second intervals
-    const pollInterval = 10000; // 10 seconds
-
-    if (attempts >= maxAttempts) {
-        messageElement.innerHTML = `
-            <div class="message-content" style="color: #f59e0b;">
-                <em>Request is taking longer than expected. Please check your chat history.</em>
-            </div>
-        `;
-        return;
-    }
-
-    try {
-        const response = await apiCall(`/inference/${inferenceId}`, {
-            method: 'GET'
-        });
 
         if (response.success) {
-            const inference = response.data;
-
-            if (inference.status === 'completed' && inference.response) {
-                messageElement.innerHTML = `
-                    <div class="message-content">
-                        ${escapeHtml(inference.response)}
-                        <div class="message-timestamp">${formatDate(inference.completedAt)}</div>
-                    </div>
-                `;
-            } else if (inference.status === 'error') {
-                messageElement.innerHTML = `
-                    <div class="message-content" style="color: #ef4444;">
-                        <em>Error: ${escapeHtml(inference.errorMessage || 'Unknown error')}</em>
-                    </div>
-                `;
-            } else {
-                // Still processing, poll again
-                setTimeout(() => {
-                    pollForInferenceResult(inferenceId, messageElement, attempts + 1);
-                }, pollInterval);
-            }
+            const conversation = response.data.conversation || response.data;
+            currentConversationId = conversation.conversationId;
+            renderConversation(conversation);
+            promptInput.value = '';
+            await loadConversationHistory(document.getElementById('historySearch')?.value || '');
         }
     } catch (error) {
-        console.error('Polling error:', error);
-        setTimeout(() => {
-            pollForInferenceResult(inferenceId, messageElement, attempts + 1);
-        }, pollInterval);
+        showError('chatError', error?.data?.message || error.message || 'Failed to send message');
+    } finally {
+        submitBtn.textContent = originalText;
+        submitBtn.disabled = false;
+        promptInput.focus();
     }
 }
 
-// ===========================
-// Utility Functions
-// ===========================
+function startNewChat() {
+    currentConversationId = null;
+    const chatTitle = document.getElementById('chatTitle');
+    if (chatTitle) chatTitle.textContent = 'New Chat';
+    renderConversation({ messages: [] });
+    displayHistoryList();
+    const promptInput = document.getElementById('promptInput');
+    if (promptInput) promptInput.focus();
+}
 
-/**
- * Format date to readable string
- */
 function formatDate(dateString) {
     const date = new Date(dateString);
     const now = new Date();
@@ -293,21 +243,25 @@ function formatDate(dateString) {
     if (diffMins < 60) return `${diffMins}m ago`;
     if (diffHours < 24) return `${diffHours}h ago`;
     if (diffDays < 7) return `${diffDays}d ago`;
-
     return date.toLocaleDateString();
 }
 
-/**
- * Escape HTML to prevent XSS
- */
 function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
 }
 
-// ===========================
-// Initialize
-// ===========================
+function formatMessageContent(text) {
+    return escapeHtml(text).replace(/\n/g, '<br>');
+}
+
+function debounce(fn, wait = 200) {
+    let timeout;
+    return (...args) => {
+        clearTimeout(timeout);
+        timeout = setTimeout(() => fn(...args), wait);
+    };
+}
 
 document.addEventListener('DOMContentLoaded', initializeDashboard);
