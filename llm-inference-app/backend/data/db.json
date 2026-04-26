@@ -1,0 +1,26 @@
+{
+  "users": [],
+  "conversations": [
+    {
+      "conversation_id": "81d76149-5df5-4daf-a4b3-5eae6e140be2",
+      "user_id": "3c03d4c7-e76a-4083-a13e-48a2808752e1",
+      "title": "What is 2 + 2?",
+      "created_at": "2026-04-26T18:32:43.381Z",
+      "updated_at": "2026-04-26T18:32:50.737Z",
+      "messages": [
+        {
+          "message_id": "35e2cc27-2470-4ed1-ba71-d59e10f3a7d5",
+          "role": "user",
+          "content": "What is 2 + 2?",
+          "created_at": "2026-04-26T18:32:43.383Z"
+        },
+        {
+          "message_id": "98f21761-2733-4c23-86f6-a2b7309e16b1",
+          "role": "assistant",
+          "content": "The answer to both questions is... 4!",
+          "created_at": "2026-04-26T18:32:50.737Z"
+        }
+      ]
+    }
+  ]
+}
