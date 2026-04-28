@@ -8,6 +8,7 @@ const authMiddleware = require('./middleware/authMiddleware');
 const authRoutes = require('./routes/authRoutes');
 const userRoutes = require('./routes/userRoutes');
 const inferenceRoutes = require('./routes/inferenceRoutes');
+const llmRoutes = require("./routes/llmRoutes");
 
 const app = express();
 
@@ -31,6 +32,7 @@ const apiV1Prefix = config.api.baseUrl;
 
 // Public routes (no authentication required)
 app.use(`${apiV1Prefix}/auth`, authRoutes);
+app.use(`${apiV1Prefix}/llm`, llmRoutes);
 
 // Private routes (authentication required)
 app.use(`${apiV1Prefix}/users`, authMiddleware, userRoutes);
