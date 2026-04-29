@@ -29,16 +29,25 @@ describe("LLM Service", () => {
     it("should generate a mock response for a valid provider", async () => {
         const response = await llmService.generateResponse(
             "openai",
-            "What is 2 + 2?"
+            "Hello"
         );
 
         expect(response).toContain("Mock OpenAI GPT Response");
-        expect(response).toContain("What is 2 + 2?");
+        expect(response).toContain("Hello");
     });
 
     it("should throw an error for an invalid provider", async () => {
         await expectAsync(
             llmService.generateResponse("fake-provider", "Hello")
         ).toBeRejectedWithError("Invalid LLM provider selected");
+    });
+
+    it("should return a mock weather response for a weather question", async () => {
+        const response = await llmService.generateResponse(
+            "gemini",
+            "What is the weather today?"
+        );
+
+        expect(response).toContain("mock weather response");
     });
 });
