@@ -1,0 +1,5 @@
+Feature 1: Select Backend LLM. [PR #4](https://github.com/dhan928/SoftwareEngineeringClass/pull/4)
+Feature 2: Local Small Models (Ollama). [PR #4](https://github.com/dhan928/SoftwareEngineeringClass/pull/4)
+Feature 3: Cloud Models (OpenAI/Gemini/Anthropic). [PR #4](https://github.com/dhan928/SoftwareEngineeringClass/pull/4)
+Feature 4: Math Chain-of-Thought. [PR #5](https://github.com/dhan928/SoftwareEngineeringClass/pull/5)
+Feature 5: Weather Tool Calling. [PR #6](https://github.com/dhan928/SoftwareEngineeringClass/pull/6)
