@@ -3,15 +3,48 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard - LLM Inference</title>
+    <title>Dashboard - LLM Chat</title>
     <link rel="stylesheet" href="assets/css/styles.css">
+    <style>
+        .model-selector-bar {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 16px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        .model-selector-bar label {
+            font-size: 13px;
+            font-weight: 600;
+            color: #555;
+            white-space: nowrap;
+        }
+        .model-selector-bar select {
+            padding: 6px 10px;
+            border-radius: 6px;
+            border: 1px solid #ccc;
+            font-size: 13px;
+            background: white;
+            cursor: pointer;
+            flex: 1;
+            max-width: 300px;
+        }
+        .model-badge {
+            font-size: 11px;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-weight: 600;
+        }
+        .model-badge.local  { background: #d4edda; color: #155724; }
+        .model-badge.public { background: #cce5ff; color: #004085; }
+    </style>
 </head>
 <body>
-    <!-- Navbar -->
     <nav class="navbar navbar-dashboard">
         <div class="nav-container">
             <div class="logo">
-                <h1>LLM Inference</h1>
+                <h1>LLM Chat</h1>
             </div>
             <button id="navLogoutBtn" class="btn btn-logout">Logout</button>
         </div>
@@ -19,42 +52,49 @@
 
     <main class="dashboard-container">
         <div class="dashboard-layout">
-            <!-- Sidebar -->
             <aside class="sidebar">
                 <div class="sidebar-header">
                     <div class="user-profile">
                         <div class="user-avatar" id="userAvatar">U</div>
                         <span id="userName" class="user-name"></span>
                     </div>
+                    <button id="newChatBtn" class="btn btn-primary btn-block">+ New Chat</button>
                 </div>
 
                 <div class="sidebar-section">
-                    <h3>Chat History</h3>
+                    <h3>History</h3>
+                    <input id="historySearch" class="history-search" type="text" placeholder="Search conversations...">
                     <div class="history-list" id="historyList">
-                        <p class="empty-state">No chat history yet</p>
+                        <p class="empty-state">No saved conversations yet</p>
                     </div>
                 </div>
             </aside>
 
-            <!-- Main Chat Area -->
             <div class="chat-area">
+                <div class="chat-header">
+                    <h2 id="chatTitle">New Chat</h2>
+                    <p>Saved automatically. Reopen any thread from the sidebar.</p>
+                </div>
+
+                <div class="model-selector-bar">
+                    <label for="modelSelect">🤖 Model:</label>
+                    <select id="modelSelect">
+                        <option value="">Loading models...</option>
+                    </select>
+                    <span id="modelBadge" class="model-badge local">local</span>
+                </div>
+
                 <div class="chat-messages" id="chatMessages">
                     <div class="welcome-message">
-                        <h3>Welcome to LLM Inference</h3>
-                        <p>Start by typing your question below</p>
+                        <h3>Start a conversation</h3>
+                        <p>Select a model above, then type your message below.</p>
                     </div>
                 </div>
 
                 <div class="chat-input-area">
                     <form id="chatForm" class="chat-form">
                         <div class="chat-form-row">
-                            <textarea 
-                                id="promptInput" 
-                                class="chat-input" 
-                                placeholder="Ask me anything..." 
-                                rows="3"
-                                required
-                            ></textarea>
+                            <textarea id="promptInput" class="chat-input" placeholder="Ask me anything..." rows="3" required></textarea>
                             <button type="submit" class="btn btn-primary btn-send">Send</button>
                         </div>
                         <span class="error-message" id="chatError"></span>
